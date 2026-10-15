@@ -9,12 +9,16 @@ Turns game videos into: an automatic highlight reel (one per chosen zoom level),
 minutes played, and a clip list the user can edit. Everything runs locally (no uploads). Repo root = the folder
 containing `pf.py`.
 
-## 1. Check setup (once per machine)
+## 1. Install / check setup (once per machine)
 
-- Needs an Apple Silicon Mac (any M-series chip), ~15 GB free disk for models, plus ~6 GB temporary space per game.
-- If `.venv/` or `models/detector/weights.onnx` or `third_party/EdgeTAM/` is missing, run `./setup.sh`
-  (installs Python packages with uv, clones EdgeTAM, downloads the detector; needs `brew install ffmpeg uv`).
-  Optional `./setup.sh --prefetch` downloads the Qwen2.5-VL models (~7 GB) up front.
+- Needs macOS on Apple Silicon (`uname -m` = `arm64`, any M-series chip), ~15 GB free disk for models plus ~6 GB
+  temporary space per game. Intel Macs, Windows and Linux are not supported yet - say so and stop.
+- If the repo is not on the machine: `git clone https://github.com/colakang/player-highlights.git ~/player-highlights`.
+- If `.venv/`, `models/detector/weights.onnx` or `third_party/EdgeTAM/` is missing, run `./setup.sh` from the repo root.
+  It installs ffmpeg / uv / git with Homebrew when missing (if Homebrew itself is missing, ask the user before
+  installing it from https://brew.sh), the Python environment, EdgeTAM and the detector. No API keys are needed.
+  Optional `./setup.sh --prefetch` downloads the Qwen2.5-VL models (~7 GB) up front; otherwise they download on first use.
+- To update: `git pull && ./setup.sh`.
 
 ## 2. Collect the inputs - ask the user, never guess
 
@@ -67,3 +71,14 @@ Then re-run the same `pf.py` command with `--adjust <edited file>`; only the cut
   usual misses. Sharper video (4K, fast shutter, higher camera) helps most.
 - Videos of minors: keep all outputs and the `work/` folder private; nothing here uploads anything.
 - Basketball only for now.
+
+## 6. Problems, ideas, contributions
+
+- Something failed or a result looks wrong: run `scripts/diag.sh`, show the user what will be sent, and with their OK
+  open an issue: `gh issue create --repo colakang/player-highlights --title "..." --body "..."` following
+  `.github/ISSUE_TEMPLATE/problem.md`. If `gh` is missing: `brew install gh && gh auth login` (the user logs in).
+- Never attach videos, frames, screenshots or label files - the players are minors. Refer to moments by time
+  ("Q3 09:51") instead.
+- Ideas: `.github/ISSUE_TEMPLATE/idea.md`.
+- Code changes: `gh repo fork colakang/player-highlights --clone`, work on a branch, test with `pf.py` on a real game,
+  then `gh pr create` using `.github/pull_request_template.md` with before/after numbers. Layout and rules: `AGENTS.md`.
