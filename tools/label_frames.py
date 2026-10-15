@@ -4,7 +4,7 @@ python tools/label_frames.py --games work/<game1> work/<game2> ... [--test work/
 
 Per game --n frames from on-court time, spread out in time (>= --gap s apart): ~3/4 where the current detector is
 unsure (weak ball, crowded players, far court, unsure numbers), ~1/4 random. Frames come straight from the source
-video at full resolution. Games given with --test are kept apart for measuring (never trained on).
+video at full resolution; within ±--sharp s of each pick the sharpest frame is used (camera pans blur frames). Games given with --test are kept apart for measuring (never trained on).
 Out: <out>/images/*.jpg, <out>/frames.json
 """
 import argparse, glob, json, os, pickle, random, re, subprocess
@@ -14,11 +14,23 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--games", nargs="+", required=True, help="work dirs made by pf.py (work/<game>)")
 ap.add_argument("--test", nargs="*", default=[], help="work dirs used only for testing")
 ap.add_argument("--out", default="work/labels"); ap.add_argument("--n", type=int, default=40)
-ap.add_argument("--gap", type=float, default=5.0); ap.add_argument("--hard", type=float, default=0.75); ap.add_argument("--seed", type=int, default=0)
+ap.add_argument("--gap", type=float, default=5.0); ap.add_argument("--sharp", type=float, default=0.5); ap.add_argument("--hard", type=float, default=0.75); ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
 random.seed(a.seed); FPS = 6.0
 os.makedirs(f"{a.out}/images", exist_ok=True)
 PLAYER = ("player", "player-in-possession", "player-jump-shot", "player-layup-dunk", "player-shot-block")
+
+
+def sharpest(video, t, span):
+    """the sharpest frame (variance of the Laplacian) of the 30 fps frames in [t - span, t + span]"""
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0, t - span):.3f}", "-i", video, "-t", f"{2 * span:.3f}", "-vf", "fps=30",
+                          "-f", "rawvideo", "-pix_fmt", "bgr24", "-"], capture_output=True).stdout
+    n = len(raw) // (1920 * 1080 * 3)
+    if n == 0: return None
+    fr = np.frombuffer(raw[:n * 1920 * 1080 * 3], np.uint8).reshape(n, 1080, 1920, 3)
+    import cv2
+    sc = [cv2.Laplacian(cv2.cvtColor(cv2.resize(f, (960, 540)), cv2.COLOR_BGR2GRAY), cv2.CV_64F).var() for f in fr]
+    return fr[int(np.argmax(sc))]
 
 
 def hardness(d):
@@ -59,7 +71,11 @@ for G in a.games + a.test:
     for h, P, f, video in chosen:
         img = f"{a.out}/images/{name}_{P}_{f:06d}.jpg"
         if not os.path.exists(img):
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{(f - 1) / FPS:.3f}", "-i", video, "-frames:v", "1", "-q:v", "2", img], check=True)
+            fr = sharpest(video, (f - 1) / FPS, a.sharp) if a.sharp > 0 else None
+            if fr is not None:
+                import cv2; cv2.imwrite(img, fr, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            else:
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{(f - 1) / FPS:.3f}", "-i", video, "-frames:v", "1", "-q:v", "2", img], check=True)
         picked.append(dict(image=os.path.basename(img), game=name, period=P, frame=f, split=split))
     print(f"{name}: {len(chosen)} frames ({split})", flush=True)
 json.dump(picked, open(f"{a.out}/frames.json", "w"), indent=0)
