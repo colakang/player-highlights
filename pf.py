@@ -27,6 +27,9 @@ ap.add_argument("--out", default="", help="output folder (default: ~/Movies/play
 ap.add_argument("--work", default="", help="work folder for intermediate data (default: work/<game folder name>)")
 ap.add_argument("--no-full", action="store_true", help="skip the full on-court version")
 ap.add_argument("--keep-frames", action="store_true", help="keep the 6 fps frame cache (about 1.5 GB per 15 min of video)")
+ap.add_argument("--plays", default="", help="your own play-by-play / clip times (see README): cuts exactly those clips + box score")
+ap.add_argument("--auto", action="store_true", help="with --plays: also make the automatic reel")
+ap.add_argument("--lang", choices=["en", "zh"], default="en", help="captions, stats card and report language")
 ap.add_argument("--adjust", default="", help="clip edits file (lines copied from the _clips.txt list + '-2 +3' / 'x'), re-renders only")
 ap.add_argument("--notify", default="", help='optional shell command run at the end / on error, "{msg}" is replaced by the message')
 a = ap.parse_args()
@@ -93,16 +96,31 @@ for g in games:
     iv.append(f"{P} " + ", ".join(f"{ts(s)}-{ts(e)}" for s, e in tl["intervals"]))
 mins = f"{int(tot)}:{int(round(tot * 60)) % 60:02d}"
 stats = os.path.join(work, "stats_auto.json")
-json.dump(dict(title=name.replace("_", " "), subtitle=(a.title or game) + "  ·  auto", minutes=mins, rows=[["on court", "auto"]],
-               note="auto version: touches checked by Qwen2.5-VL + shot candidates"), open(stats, "w"), ensure_ascii=False)
+zh = a.lang == "zh"
+json.dump(dict(title=name.replace("_", " "), subtitle=(a.title or game) + ("  ·  自动版" if zh else "  ·  auto"), minutes=mins,
+               minutes_label="上场时间" if zh else "Minutes", rows=[["片段" if zh else "Clips", "自动识别" if zh else "automatic"]],
+               note="自动版：触球经 Qwen2.5-VL 复核 + 投篮候选" if zh else "Automatic: touches checked by Qwen2.5-VL + shot candidates"),
+          open(stats, "w"), ensure_ascii=False)
+adjust = ["--adjust", os.path.abspath(a.adjust)] if a.adjust else []
+tagz = lambda z: "" if z <= 1 else f"_zoom{z:g}"
 
 made = []
-for z in zooms:
-    tag = "" if z <= 1 else f"_zoom{z:g}"
-    f = os.path.join(out, f"{name}_highlight{tag}.mp4")
+if a.plays:                                                           # the user's own play-by-play -> exactly those clips
+    pj, sj, lj = (os.path.join(work, n) for n in ("plays.json", "stats_plays.json", "hl_labels.json"))
+    run([PY, "p4/plays.py", os.path.abspath(a.plays), pj, a.number, a.lang])
+    run([PY, "p4/game_report.py", "--plays", pj, "--games", *games, "--title", a.title or game, "--name", name.replace("_", " "),
+         "--qlen", str(plen), "--clock", clock, "--lang", a.lang, "--out-md", os.path.join(out, f"{name}_summary.md"),
+         "--stats-json", sj, "--labels-json", lj])
+    for z in zooms:
+        f = os.path.join(out, f"{name}_plays{tagz(z)}.mp4")
+        run([PY, "-W", "ignore", "p4/cut_highlight.py", "--games", *games, "--number", a.number, "--color", a.color, "--name", name,
+             "--mode", "plays", "--labels", lj, "--zoom", str(z if z > 1 else 0), "--out", out, "--outfile", f, *adjust])
+        run([PY, "p4/stats_card.py", "--stats", sj, "--video", f]); made.append(f)
+    made.append(os.path.join(out, f"{name}_summary.md"))
+for z in (zooms if (not a.plays or a.auto) else []):
+    f = os.path.join(out, f"{name}_highlight{tagz(z)}.mp4")
     run([PY, "-W", "ignore", "p4/cut_highlight.py", "--games", *games, "--number", a.number, "--color", a.color, "--name", name,
-         "--mode", "auto_short", "--touches", "touches_vlm.json", "--zoom", str(z if z > 1 else 0), "--out", out, "--outfile", f,
-         *(["--adjust", os.path.abspath(a.adjust)] if a.adjust else [])])
+         "--mode", "auto_short", "--touches", "touches_vlm.json", "--zoom", str(z if z > 1 else 0), "--out", out, "--outfile", f, *adjust])
     run([PY, "p4/stats_card.py", "--stats", stats, "--video", f]); made.append(f)
 if not a.no_full:
     run([PY, "-W", "ignore", "p4/cut_full.py", "--games", *games, "--name", name, "--out", out])

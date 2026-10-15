@@ -14,7 +14,7 @@ Everything runs **locally on an Apple Silicon Mac**. No footage is uploaded anyw
 
 Open **Claude Code** or **Codex** and paste:
 
-> Install https://github.com/colakang/player-highlights and make highlights of #12 (white jersey) from the videos in ~/Movies/game1
+> Install https://github.com/colakang/player-highlights and make highlights of my kid (number __, __ jersey) from the videos in ~/Movies/game1
 
 The assistant installs everything, asks you a few questions (which file is which quarter, game format, zoom), runs it
 in the background and tells you when your videos are ready. Problems or ideas? Just tell the assistant —
@@ -57,7 +57,7 @@ cd ~/player-highlights
   --videos ~/Movies/game1 \            # a folder (sorted by file name) or the files in game order
   --periods Q1,Q2,Q3,Q4 \              # one per file: Q1..Q4 / H1,H2 / FULL
   --format quarters:8:stop \           # quarters|halves|full : minutes per period : stop|running
-  --number 12 --color white --name 12_ALEX \
+  --number <your kid's number> --color <jersey colour> --name <label, e.g. 7_ALEX> \
   --zooms 1,1.6                        # 1 = original framing; any of 1.2 / 1.6 / 2.0
 ```
 
@@ -65,10 +65,10 @@ Results go to `~/Movies/player-highlights/<game folder>/` (change with `--out`, 
 
 | File | Content |
 |---|---|
-| `12_ALEX_highlight.mp4` | highlight reel, original framing |
-| `12_ALEX_highlight_zoom1.6.mp4` | highlight reel, 1.6× follow-cam |
+| `<name>_highlight.mp4` | highlight reel, original framing |
+| `<name>_highlight_zoom1.6.mp4` | highlight reel, 1.6× follow-cam |
 | `*_clips.txt` | clip list |
-| `12_ALEX_full_game.mp4` | full on-court cut |
+| `<name>_full_game.mp4` | full on-court cut |
 
 About 40–60 minutes of processing per 15 minutes of video. Re-running the same command resumes where it stopped.
 
@@ -83,6 +83,53 @@ Q4 10:20 10:35 +  # new line: add a clip
 ```
 
 Then re-run the same command with `--adjust <that file>` — only the cutting is redone (about a minute).
+
+### Your own picks: cut exactly the moments you choose
+
+Watching the game anyway? Write down the moments (video time of each file) and get exactly those clips, captions
+and a box score — in about a minute once the game has been analysed:
+
+```
+Q1: 6:39 on; 8:06 7np catch and shoot; 9:48 7p1; 12:40 4p7
+Q2: 3:10; 5:03 7jb; 8:36 7m2 layup; 10:36 7reb; 10:37 7p20 to
+H2: 4:15 great defence on the press
+```
+
+`7` = your kid's number. Codes: `7m2`/`7m3`/`7m1` made 2/3/free throw, `7np`/`7np1` missed shot/free throw, `7pN` passes
+to #N, `Np7` #N passes to your kid, `7reb`, `7st` steal, `7t` turnover (or `to` after a pass), `7f` foul, `7gf` drew a
+foul, `7screen`, `7jb` jump ball, `on`/`off`. A time with no code (or just words) is simply a clip with that caption;
+`3:10~3:25` gives a time range.
+
+```bash
+.venv/bin/python pf.py ...same options... --plays my_plays.txt [--auto] [--lang en|zh]
+```
+
+Outputs `<name>_plays.mp4` (one per zoom) and `<name>_summary.md` (box score, minutes, play list). `--auto` also
+makes the automatic reel; `--adjust` works here too. Your AI assistant can write this file from what you tell it
+("at 8:36 in Q2 they scored a layup").
+
+## Improve the detector with your own labels (and share the result)
+
+The default detector is trained on a public dataset; frames from *your* gym, camera and league make it better —
+especially for the ball and jersey numbers. Everything stays on your Mac; only the trained **weights** can be shared.
+
+1. **Pick frames** from games you have already analysed (about 40 per game; keep one game for testing):
+   `.venv/bin/python tools/label_frames.py --games work/<game1> work/<game2> --test work/<game3>`
+2. **Correct the pre-labels** in a local Label Studio (http://localhost:8080):
+   `.venv/bin/python tools/labelstudio.py start`, sign up locally, copy *Account & Settings → Personal Access Token*, then
+   `.venv/bin/python tools/labelstudio.py import --token <token>`. Fix the **number** (red) and **ball** (orange) boxes,
+   glance at players/referees, press *Submit* per frame (about a minute each).
+3. **Export and train** (~2–4 h on the Apple GPU):
+   `.venv/bin/python tools/labelstudio.py export --token <token>` then `.venv/bin/python tools/finetune.py`.
+   It mixes in the public dataset, starts from the current detector and prints a before/after table on your test frames.
+   If "after" is better: `.venv/bin/python tools/finetune.py --install` (the old model is kept as `weights_prev.onnx`).
+4. **Share**: open an issue "Detector fine-tune" with the before/after table, how many frames / games / gyms, and attach
+   `best.pt` (or a link). Never attach the labelled images. Good fine-tunes become the next `detector-vN` release, and the
+   next family can start from it with `tools/finetune.py --start <file.pt>` — so every family's labels add up.
+
+Model formats: the detector runs as **ONNX** through onnxruntime's CoreML provider (Apple GPU / Neural Engine);
+training uses the **PyTorch `.pt`** (both in the `detector-v1` release). The vision-language models (Qwen2.5-VL) run
+in **MLX** format, EdgeTAM in PyTorch on MPS.
 
 ## Accuracy (honest numbers)
 

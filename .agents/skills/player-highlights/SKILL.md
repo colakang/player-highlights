@@ -30,11 +30,14 @@ Ask in the user's language, in one message where possible:
    a long gap inside a quarter is not halftime.
 3. **Game format and clock**: e.g. 4 quarters x 8 min stopped clock (`quarters:8:stop`), 2 halves x 20 min
    running clock (`halves:20:running`). Used for minutes played.
-4. **Jersey number and team jersey colour** of the player (e.g. 12, white).
-5. **Name label** for captions and file names (e.g. `12_ALEX`; default is the number).
+4. **Jersey number and team jersey colour** of the player.
+5. **Name label** for captions and file names (e.g. `7_ALEX`; default is the number).
 6. **Zoom levels** - multiple choice from 1 (original framing), 1.2, 1.6, 2.0; default 1. Each level is one reel.
 7. **Output folder** - default `~/Movies/player-highlights/<game folder>/`. Must be writable.
-8. Optional: a notification command (e.g. a chat CLI) - pass as `--notify '... "{msg}"'`.
+8. **Language** of captions / stats card / report: English (default) or Chinese (`--lang zh`).
+9. **Own picks?** If the user has (or wants to dictate) the moments to include, write them into a plays file
+   (format in README "Your own picks") and pass `--plays <file>` (add `--auto` to also get the automatic reel).
+10. Optional: a notification command (e.g. a chat CLI) - pass as `--notify '... "{msg}"'`.
 
 ## 3. Run
 
@@ -43,7 +46,7 @@ from the log:
 
 ```bash
 nohup .venv/bin/python pf.py --videos "<folder or files>" --periods Q1,Q2,Q3,Q4 --format quarters:8:stop \
-  --number 12 --color white --name 12_ALEX --zooms 1,1.6 --out "<output folder>" > work/pf_<game>.log 2>&1 &
+  --number <N> --color <colour> --name <label> --zooms 1,1.6 --out "<output folder>" > work/pf_<game>.log 2>&1 &
 ```
 
 - Re-running the same command continues where it stopped (finished periods are skipped).
@@ -72,7 +75,14 @@ Then re-run the same `pf.py` command with `--adjust <edited file>`; only the cut
 - Videos of minors: keep all outputs and the `work/` folder private; nothing here uploads anything.
 - Basketball only for now.
 
-## 6. Problems, ideas, contributions
+## 6. Better detector from the user's own labels (optional)
+
+If the user wants to improve accuracy for their gym/camera, follow README "Improve the detector": `tools/label_frames.py`,
+`tools/labelstudio.py start|import|export` (the user corrects boxes in http://localhost:8080 and gives you the
+Personal Access Token), then `tools/finetune.py` (2-4 h on the GPU; suggest running it when the Mac is free) and
+`--install` only if the before/after table improves. Offer to share the weights + table via an issue - never images.
+
+## 7. Problems, ideas, contributions
 
 - Something failed or a result looks wrong: run `scripts/diag.sh`, show the user what will be sent, and with their OK
   open an issue: `gh issue create --repo colakang/player-highlights --title "..." --body "..."` following

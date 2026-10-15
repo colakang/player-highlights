@@ -1,6 +1,8 @@
 """Time-based play-by-play (what the user writes while watching) -> plays json, stats, captions.
 
-Input text, one line per quarter (video time of that quarter's file), entries separated by ';' (or just by the next time):
+Input text, one line per period (Q1..Q4 / H1 H2 / FULL; times = video time of that period's file),
+entries separated by ';' (or just by the next time). A time with no code (e.g. "Q2: 3:10; 7:45 nice defence") is simply
+a clip to include, captioned with any text after it:
   Q2: 0:43 30p12; 0:48 12p 0:44~0:48 12运球; 0:52 12Reb; 8:36 12np(catch and shot); 10:08 12p15
   Q3: 0:41 12p43,to; 9:51 12m2,layup; 12:30 off; 16:40 on; 16:48 12 跳起防守
   Q4: 11:57 on; 12:31 12st
@@ -15,6 +17,11 @@ Vocabulary (case-insensitive; '12' = target number):
 import json, re, sys
 
 NUM = "12"
+LANG = "en"
+EN = {"np": "missed shot", "np1": "missed free throw", "m1": "free throw made", "m2": "2 points", "m3": "3 points", "st": "steal",
+      "t": "turnover", "r": "rebound", "reb": "rebound", "f": "foul", "gf": "drew a foul", "screen": "screen", "jumball": "jump ball",
+      "jb": "jump ball"}
+NOTE_EN = {"layup": "layup", "catch and shoot": "catch and shoot", "catch and shot": "catch and shoot", "to": "turnover"}
 ZH = {"np": "出手未进", "np1": "罚球未进", "m1": "罚球命中", "m2": "两分命中", "m3": "三分命中", "st": "抢断", "t": "失误",
       "r": "篮板", "reb": "篮板", "f": "犯规", "gf": "造犯规", "screen": "掩护", "jumball": "争球", "jb": "争球"}
 NOTE_ZH = {"layup": "上篮", "catch and shot": "接球投篮", "to": "失误"}
@@ -24,13 +31,13 @@ def _t(s):
     m, x = s.split(":"); return int(m) * 60 + float(x)
 
 
-def parse(text, number=NUM):
-    global NUM; NUM = number
+def parse(text, number=NUM, lang="en"):
+    global NUM, LANG; NUM = number; LANG = lang
     out = {}
     for line in text.strip().splitlines():
-        m = re.match(r"\s*(Q\d)\s*[:：]\s*(.*)", line.strip())
+        m = re.match(r"\s*(Q\d|H\d|FULL)\s*[:：]\s*(.*)", line.strip(), re.I)
         if not m: continue
-        q, body = m.groups(); plays = out.setdefault(q, [])
+        q, body = m.groups(); q = q.upper(); plays = out.setdefault(q, [])
         # split at every time token (mm:ss or mm:ss~mm:ss)
         parts = re.split(r"(\d{1,2}:\d{2}(?:\s*[~\-－]\s*\d{1,2}:\d{2})?)", body)
         for i in range(1, len(parts), 2):
@@ -54,24 +61,27 @@ def interpret(raw):
     if m: d.update(by12=True, act="p_out", target=m.group(1) or None)
     m = re.search(rf"\b{NUM}\s*(np1|np|m1|m2|m3|st|reb|r|gf|f|t|screen|jumball|jb)\b", low)
     if m: d.update(by12=True, act=m.group(1))
-    if d["act"] is None and low.startswith(NUM):                 # free text by #12, e.g. "12 跳起防守", "12运球"
+    if d["act"] is None and low.startswith(NUM):                 # free text by the player, e.g. "12 blocks the shot"
         d.update(by12=True, act="text")
-    for k, v in NOTE_ZH.items():
+    elif d["act"] is None and not d["to12"]:                     # a plain time (+ optional text): just a clip to include
+        d.update(by12=True, act="clip")
+    for k, v in (NOTE_EN if LANG == "en" else NOTE_ZH).items():
         if k in low and k != "to": d["notes"].append(v)
-    zh_free = re.sub(rf"^{NUM}\s*", "", s) if d["act"] == "text" else ""
+    zh_free = re.sub(rf"^{NUM}\s*", "", s) if d["act"] in ("text", "clip") else ""
     d["caption"] = caption(d, zh_free)
     return d
 
 
 def caption(d, zh_free=""):
     if d["onoff"]: return None
-    if d["act"] == "p_in": c = f"接 {d['passer']} 号传球" if d["passer"] else "接球"
-    elif d["act"] == "p_out": c = f"传给 {d['target']} 号" if d["target"] else "传球"
-    elif d["act"] == "text": c = zh_free
-    else: c = ZH.get(d["act"], d["act"] or "")
-    if d["turnover"]: c += " · 失误"
+    en = LANG == "en"
+    if d["act"] == "p_in": c = (f"pass from #{d['passer']}" if en else f"接 {d['passer']} 号传球") if d["passer"] else ("catch" if en else "接球")
+    elif d["act"] == "p_out": c = (f"pass to #{d['target']}" if en else f"传给 {d['target']} 号") if d["target"] else ("pass" if en else "传球")
+    elif d["act"] in ("text", "clip"): c = zh_free
+    else: c = (EN if en else ZH).get(d["act"], d["act"] or "")
+    if d["turnover"]: c += " · turnover" if en else " · 失误"
     if d["notes"]: c += " · " + " · ".join(d["notes"])
-    return c or None
+    return c or ("" if d["act"] == "clip" else None)
 
 
 def stats(plays):
@@ -96,7 +106,7 @@ def stats(plays):
 
 
 if __name__ == "__main__":
-    txt = open(sys.argv[1]).read(); P = parse(txt)
+    txt = open(sys.argv[1]).read(); P = parse(txt, *(sys.argv[3:5]))
     json.dump(P, open(sys.argv[2], "w"), indent=1, ensure_ascii=False)
     for q, ps in P.items():
         print(q, stats(ps))

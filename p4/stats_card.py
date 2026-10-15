@@ -22,7 +22,7 @@ def card(path):
     d.text((140, 110), S["title"], font=T, fill=(255, 255, 255))
     d.text((140, 230), S["subtitle"], font=M, fill=(160, 180, 210))
     d.line((140, 320, 1780, 320), fill=(70, 90, 130), width=3)
-    rows = [["上场时间", S["minutes"]]] + S["rows"]
+    rows = [[S.get("minutes_label", "Minutes"), S["minutes"]]] + S["rows"]
     cols = 2; per = (len(rows) + cols - 1) // cols
     for i, (k, v) in enumerate(rows):
         c, r = divmod(i, per); x = 140 + c * 840; y = 380 + r * 110
