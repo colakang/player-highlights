@@ -12,12 +12,13 @@ ap.add_argument("--video", required=True); ap.add_argument("--work", required=Tr
 ap.add_argument("--period", required=True, help="Q1..Q4 / H1 / H2 / FULL")
 ap.add_argument("--number", required=True); ap.add_argument("--color", required=True)
 ap.add_argument("--sport", default="basketball", choices=["basketball", "football"])
+ap.add_argument("--team_size", type=int, default=0, help="players per team on court (default 5 for basketball; e.g. 3 or 4 for small-sided games)")
 ap.add_argument("--anchor", nargs="*", default=[], help="mm:ss=on|off (video time), optional user-confirmed states")
 ap.add_argument("--gt", default="", help="dev only: on-court GT json for evaluation")
 a = ap.parse_args()
 
 W = a.work.rstrip("/"); PY = sys.executable
-TEAM = {"basketball": 5, "football": 11}[a.sport]
+TEAM = a.team_size or {"basketball": 5, "football": 11}[a.sport]
 env = dict(os.environ, PF_WORK=W, PF_GT=a.gt)
 os.makedirs(f"{W}/frames", exist_ok=True); os.makedirs(f"{W}/audio", exist_ok=True)
 json.dump(vars(a), open(f"{W}/input.json", "w"), indent=1)

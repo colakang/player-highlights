@@ -23,6 +23,7 @@ ap.add_argument("--name", default="", help="label used in captions and file name
 ap.add_argument("--title", default="", help="game title on the stats card")
 ap.add_argument("--zooms", default="1", help="comma list of follow-cam zoom levels; 1 = original framing (e.g. 1,1.6)")
 ap.add_argument("--sport", default="basketball", choices=["basketball"])
+ap.add_argument("--team-size", type=int, default=5, help="players per team on court: 5, or 3 / 4 for small-sided (e.g. half-court 4v4)")
 ap.add_argument("--out", default="", help="output folder (default: ~/Movies/player-highlights/<game folder>/)")
 ap.add_argument("--work", default="", help="work folder for intermediate data (default: work/<game folder name>)")
 ap.add_argument("--no-full", action="store_true", help="skip the full on-court version")
@@ -77,7 +78,7 @@ for P, video in zip(periods, a.videos):
     games.append(f"{P}={W}")
     if os.path.exists(os.path.join(W, ".pf_done")):                    # analysed before: only the cutting is redone
         print("  already analysed"); continue
-    run([PY, "run.py", "--video", video, "--work", W, "--period", P, "--number", a.number, "--color", a.color, "--sport", a.sport], log=log)
+    run([PY, "run.py", "--video", video, "--work", W, "--period", P, "--number", a.number, "--color", a.color, "--sport", a.sport, "--team_size", str(a.team_size)], log=log)
     for s in (["p4/her_tracks.py"], ["p4/shot_cands.py"], ["p4/shot_clf.py", "score"], ["p4/identity.py", "--number", a.number, "--color", a.color],
               ["p4/anchors.py", "--number", a.number, "--color", a.color], ["p4/mask_anchor.py"], ["p4/ball_crop.py"], ["p4/touch.py"], ["p4/touch_vlm.py"]):
         done = {"p4/mask_anchor.py": "p4/mask_anchor.json", "p4/touch_vlm.py": "p4/touches_vlm.json"}.get(s[0])

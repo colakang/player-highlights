@@ -28,7 +28,8 @@ Ask in the user's language, in one message where possible:
    List what you find (name + duration via `ffprobe -v error -show_entries format=duration -of csv=p=0 FILE`).
 2. **Which period each file is** - confirm explicitly: Q1..Q4, H1/H2, or FULL. Do not infer from durations alone;
    a long gap inside a quarter is not halftime.
-3. **Game format and clock**: e.g. 4 quarters x 8 min stopped clock (`quarters:8:stop`), 2 halves x 20 min
+3. **Players per side**: 5 (default), or 3 / 4 for small-sided games (half-court 4v4 -> `--team-size 4`).
+   **Game format and clock**: e.g. 4 quarters x 8 min stopped clock (`quarters:8:stop`), 2 halves x 20 min
    running clock (`halves:20:running`). Used for minutes played.
 4. **Jersey number and team jersey colour** of the player.
 5. **Name label** for captions and file names (e.g. `7_ALEX`; default is the number).
