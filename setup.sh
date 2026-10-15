@@ -2,7 +2,7 @@
 # One-time setup on an Apple Silicon Mac: Python env, EdgeTAM, models.
 set -e
 cd "$(dirname "$0")"
-[ "$(uname -s)/$(uname -m)" = "Darwin/arm64" ] || { echo "player-highlights needs an Apple Silicon Mac (M1-M4)."; exit 1; }
+[ "$(uname -s)/$(uname -m)" = "Darwin/arm64" ] || { echo "player-highlights needs an Apple Silicon Mac (any M-series chip)."; exit 1; }
 command -v ffmpeg >/dev/null || { echo "ffmpeg missing: brew install ffmpeg"; exit 1; }
 command -v uv >/dev/null || { echo "uv missing: brew install uv   (or: curl -LsSf https://astral.sh/uv/install.sh | sh)"; exit 1; }
 [ -d .venv ] || uv venv .venv --python 3.12

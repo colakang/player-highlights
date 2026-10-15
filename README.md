@@ -15,7 +15,7 @@ and minutes played — locally on an Apple Silicon Mac. English usage: see the s
 
 ## 需要什么
 
-- Apple Silicon Mac（M1–M4），建议 16GB 内存
+- Apple Silicon Mac（M 系列芯片，M1 及之后），建议 16GB 内存
 - 约 15GB 硬盘放模型；处理时每场比赛临时约 6GB（跑完自动清除）
 - `brew install ffmpeg uv git`
 - 比赛录像：固定机位或手持跟拍都可以，每节 / 每半场一个文件，或一个全场文件

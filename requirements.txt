@@ -1,4 +1,4 @@
-# Apple Silicon (M1-M4) macOS, Python 3.12. Ranges tested together on an M4 / 16 GB.
+# Apple Silicon (M-series) macOS, Python 3.12. Ranges tested together on an M4 / 16 GB.
 numpy>=2.0,<3
 opencv-python>=4.12
 pillow>=11

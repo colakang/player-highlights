@@ -11,7 +11,7 @@ containing `pf.py`.
 
 ## 1. Check setup (once per machine)
 
-- Needs an Apple Silicon Mac (M1-M4), ~15 GB free disk for models, plus ~6 GB temporary space per game.
+- Needs an Apple Silicon Mac (any M-series chip), ~15 GB free disk for models, plus ~6 GB temporary space per game.
 - If `.venv/` or `models/detector/weights.onnx` or `third_party/EdgeTAM/` is missing, run `./setup.sh`
   (installs Python packages with uv, clones EdgeTAM, downloads the detector; needs `brew install ffmpeg uv`).
   Optional `./setup.sh --prefetch` downloads the Qwen2.5-VL models (~7 GB) up front.
