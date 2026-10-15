@@ -1,0 +1,20 @@
+# local settings / secrets
+.env
+config.local.sh
+# environments, caches
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+# generated
+work/
+third_party/
+models/*
+!models/shot_clf.pkl
+!models/README.md
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.pt
+*.onnx
