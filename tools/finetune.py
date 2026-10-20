@@ -19,7 +19,8 @@ REPO = "colakang/player-highlights"
 ap = argparse.ArgumentParser()
 ap.add_argument("--labels", default=os.path.join(ROOT, "work", "labels", "yolo")); ap.add_argument("--start", default="")
 ap.add_argument("--epochs", type=int, default=60); ap.add_argument("--batch", type=int, default=4)
-ap.add_argument("--name", default="ft"); ap.add_argument("--install", action="store_true")
+ap.add_argument("--name", default="ft"); ap.add_argument("--repeat", type=int, default=3, help="weight of your frames vs the public set");
+ap.add_argument("--patience", type=int, default=0); ap.add_argument("--install", action="store_true")
 a = ap.parse_args()
 F = os.path.join(ROOT, "work", "finetune"); os.makedirs(F, exist_ok=True)
 try:
@@ -44,10 +45,10 @@ names = [l.strip() for l in open(os.path.join(ROOT, "models", "detector", "class
 mine_train, mine_test = os.path.join(a.labels, "train", "images"), os.path.join(a.labels, "test", "images")
 if not os.path.isdir(mine_train): sys.exit(f"no labelled training frames in {a.labels} - run tools/labelstudio.py export first")
 yaml_train = os.path.join(F, "data.yaml")
-open(yaml_train, "w").write("train:\n" + "".join(f"  - {p}\n" for p in (os.path.join(base, "train", "images"), mine_train)) +
+open(yaml_train, "w").write("train:\n" + "".join(f"  - {p}\n" for p in [os.path.join(base, "train", "images")] + [mine_train] * a.repeat) +
                             f"val: {os.path.join(base, 'valid', 'images')}\nnc: {len(names)}\nnames: {names}\n")
 model = YOLO(start)
-model.train(data=yaml_train, imgsz=1280, epochs=a.epochs, batch=a.batch, device="mps", workers=2, patience=max(20, a.epochs // 3),
+model.train(data=yaml_train, imgsz=1280, epochs=a.epochs, batch=a.batch, device="mps", workers=2, patience=a.patience or max(20, a.epochs // 3),
             project=F, name=a.name, exist_ok=True, plots=False, lr0=0.002, warmup_epochs=1)
 best = os.path.join(F, a.name, "weights", "best.pt")
 
