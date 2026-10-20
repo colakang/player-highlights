@@ -80,7 +80,7 @@ else:                                                                  # export 
     for t in T:
         ann = [x for x in t.get("annotations", []) if not x.get("was_cancelled")]
         if not ann: continue                                           # not reviewed yet -> not used
-        split = t["data"].get("split", "train"); img = os.path.basename(t["data"]["image"])
+        split = t["data"].get("split", "train"); img = os.path.basename(t["data"]["image"].split("?")[0])
         os.makedirs(f"{Y}/{split}/images", exist_ok=True); os.makedirs(f"{Y}/{split}/labels", exist_ok=True)
         src = os.path.join(D, "images", img); dst = f"{Y}/{split}/images/{img}"
         if not os.path.exists(dst):                                    # stretched to 1280x1280 like the base data and inference
