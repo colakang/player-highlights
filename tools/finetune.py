@@ -5,7 +5,8 @@ python tools/finetune.py [--epochs 60] [--install]
 - base data: the CC BY 4.0 Roboflow Universe set (release dataset-bpd3-v4) is mixed in so the model keeps what it knew
 - start: the current detector's PyTorch weights (release detector-v1, or --start <file.pt> e.g. another family's
   shared fine-tune)
-- your data: work/labels/yolo (tools/labelstudio.py export); frames marked "test" are only used for the comparison
+- your data: work/labels/yolo (tools/labelstudio.py export); --val of your training frames are held out to pick the
+  best epoch on YOUR footage (not the public validation set); frames marked "test" are only used for the final comparison
 - result: work/finetune/<run>/weights/best.pt + .onnx and a before/after table on your test frames (mAP50 / mAP50-95,
   ball and number recall). --install copies the ONNX to models/detector/ (the previous one is kept as weights_prev.onnx).
 
@@ -20,7 +21,9 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--labels", default=os.path.join(ROOT, "work", "labels", "yolo")); ap.add_argument("--start", default="")
 ap.add_argument("--epochs", type=int, default=60); ap.add_argument("--batch", type=int, default=4)
 ap.add_argument("--name", default="ft"); ap.add_argument("--repeat", type=int, default=3, help="weight of your frames vs the public set");
-ap.add_argument("--patience", type=int, default=0); ap.add_argument("--install", action="store_true")
+ap.add_argument("--patience", type=int, default=0);
+ap.add_argument("--val", type=int, default=30, help="your frames held out to pick the best epoch (0 = use the public validation set)")
+ap.add_argument("--install", action="store_true")
 a = ap.parse_args()
 F = os.path.join(ROOT, "work", "finetune"); os.makedirs(F, exist_ok=True)
 try:
@@ -44,9 +47,26 @@ start = a.start or get(f"https://github.com/{REPO}/releases/download/detector-v1
 names = [l.strip() for l in open(os.path.join(ROOT, "models", "detector", "class_names.txt")) if l.strip()]
 mine_train, mine_test = os.path.join(a.labels, "train", "images"), os.path.join(a.labels, "test", "images")
 if not os.path.isdir(mine_train): sys.exit(f"no labelled training frames in {a.labels} - run tools/labelstudio.py export first")
+val_dir = os.path.join(a.labels, "val", "images")
+if a.val and not os.path.isdir(val_dir):                               # hold out some of YOUR frames (spread over games) to pick the epoch
+    import collections, random
+    imgs = sorted(f for f in os.listdir(mine_train) if f.lower().endswith((".jpg", ".png")))
+    by = collections.defaultdict(list)
+    for f in imgs: by[f.rsplit("_", 2)[0]].append(f)
+    rnd = random.Random(0); pick = []
+    while len(pick) < min(a.val, len(imgs) // 4):
+        for g in sorted(by):
+            if by[g] and len(pick) < a.val: pick.append(by[g].pop(rnd.randrange(len(by[g]))))
+    for sub_ in ("images", "labels"): os.makedirs(os.path.join(a.labels, "val", sub_), exist_ok=True)
+    for f in pick:
+        lb = os.path.splitext(f)[0] + ".txt"
+        os.replace(os.path.join(mine_train, f), os.path.join(val_dir, f))
+        os.replace(os.path.join(a.labels, "train", "labels", lb), os.path.join(a.labels, "val", "labels", lb))
+    print(f"held out {len(pick)} of your frames for validation -> {val_dir}")
+val_used = val_dir if a.val and os.path.isdir(val_dir) else os.path.join(base, "valid", "images")
 yaml_train = os.path.join(F, "data.yaml")
 open(yaml_train, "w").write("train:\n" + "".join(f"  - {p}\n" for p in [os.path.join(base, "train", "images")] + [mine_train] * a.repeat) +
-                            f"val: {os.path.join(base, 'valid', 'images')}\nnc: {len(names)}\nnames: {names}\n")
+                            f"val: {val_used}\nnc: {len(names)}\nnames: {names}\n")
 model = YOLO(start)
 model.train(data=yaml_train, imgsz=1280, epochs=a.epochs, batch=a.batch, device="mps", workers=2, patience=a.patience or max(20, a.epochs // 3),
             project=F, name=a.name, exist_ok=True, plots=False, lr0=0.002, warmup_epochs=1)
