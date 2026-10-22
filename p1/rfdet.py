@@ -30,7 +30,15 @@ class YoloOnnx:
 
     def __call__(self, bgr, conf=0.15, iou=0.9):
         h, w = bgr.shape[:2]
-        im = cv2.resize(bgr, (self.size, self.size))       # inference_config: resize_mode = stretch
+        ih, iw = self.s.get_inputs()[0].shape[2:4]
+        if isinstance(ih, int) and isinstance(iw, int) and ih != iw:    # rectangular model (e.g. 1088x1920): letterbox, keep aspect
+            r = min(iw / w, ih / h); nw, nh = round(w * r), round(h * r); px, py = (iw - nw) / 2, (ih - nh) / 2
+            im = cv2.copyMakeBorder(cv2.resize(bgr, (nw, nh)), int(round(py - 0.1)), int(round(py + 0.1)), int(round(px - 0.1)),
+                                    int(round(px + 0.1)), cv2.BORDER_CONSTANT, value=(114, 114, 114))
+            box_map = lambda b: (b - np.array([px, py, px, py])) / r
+        else:                                                  # square model trained on stretched frames (Roboflow / detector-v1)
+            im = cv2.resize(bgr, (self.size, self.size))       # inference_config: resize_mode = stretch
+            box_map = lambda b: b * np.array([w / self.size, h / self.size, w / self.size, h / self.size])
         x = (im[..., ::-1].transpose(2, 0, 1)[None] / 255.0).astype(np.float32)
         out = self.s.run(None, {self.inp: x})[0][0]           # (4 + nc, anchors)
         scores = out[4:]; cls = scores.argmax(0); sc = scores.max(0)
@@ -38,8 +46,7 @@ class YoloOnnx:
         if not keep.any():
             return np.zeros((0, 4), np.float32), np.zeros(0, np.float32), []
         cx, cy, bw, bh = out[:4, keep]; sc, cls = sc[keep], cls[keep]
-        sx, sy = w / self.size, h / self.size
-        xyxy = np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 1) * np.array([sx, sy, sx, sy])
+        xyxy = box_map(np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 1))
         xyxy[:, [0, 2]] = xyxy[:, [0, 2]].clip(0, w); xyxy[:, [1, 3]] = xyxy[:, [1, 3]].clip(0, h)
         kept = []
         for c in np.unique(cls):                               # per-class NMS
