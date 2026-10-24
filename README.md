@@ -128,7 +128,7 @@ especially for the ball and jersey numbers. Everything stays on your Mac; only t
    next family can start from it with `tools/finetune.py --start <file.pt>` — so every family's labels add up.
 
 Model formats: the detector runs as **ONNX** through onnxruntime's CoreML provider (Apple GPU / Neural Engine);
-training uses the **PyTorch `.pt`** (both in the `detector-v1` release). The vision-language models (Qwen2.5-VL) run
+training uses the **PyTorch `.pt`** (both in the `detector-v2` release). The vision-language models (Qwen2.5-VL) run
 in **MLX** format, EdgeTAM in PyTorch on MPS.
 
 ## Accuracy (honest numbers)
@@ -162,5 +162,6 @@ frames, screenshots or labels (minors). For accuracy changes, include how you me
 
 ## Licence
 
-[AGPL-3.0](LICENSE). Third-party components and model licences: [NOTICE.md](NOTICE.md). The default detector was
-trained on the Roboflow Universe dataset "basketball-player-detection-3" (CC BY 4.0).
+[AGPL-3.0](LICENSE). Third-party components and model licences: [NOTICE.md](NOTICE.md). The default detector
+(`detector-v2`) was trained on the Roboflow Universe dataset "basketball-player-detection-3" (CC BY 4.0) plus
+hand-corrected youth-game frames (not published) — see the release notes for its accuracy.

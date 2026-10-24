@@ -3,7 +3,7 @@
 python tools/finetune.py [--epochs 60] [--install]
 
 - base data: the CC BY 4.0 Roboflow Universe set (release dataset-bpd3-v4) is mixed in so the model keeps what it knew
-- start: the current detector's PyTorch weights (release detector-v1, or --start <file.pt> e.g. another family's
+- start: the current detector's PyTorch weights (release detector-v2, or --start <file.pt> e.g. another family's
   shared fine-tune)
 - your data: work/labels/yolo (tools/labelstudio.py export); --val of your training frames are held out to pick the
   best epoch on YOUR footage (not the public validation set); frames marked "test" are only used for the final comparison
@@ -43,7 +43,7 @@ base = os.path.join(F, "base")
 if not os.path.exists(os.path.join(base, "data.yaml")):
     z = get(f"https://github.com/{REPO}/releases/download/dataset-bpd3-v4/bpd3-v4.zip", os.path.join(F, "bpd3-v4.zip"))
     zipfile.ZipFile(z).extractall(base)
-start = a.start or get(f"https://github.com/{REPO}/releases/download/detector-v1/detector-v1.pt", os.path.join(F, "detector-v1.pt"))
+start = a.start or get(f"https://github.com/{REPO}/releases/download/detector-v2/detector-v2.pt", os.path.join(F, "detector-v2.pt"))
 names = [l.strip() for l in open(os.path.join(ROOT, "models", "detector", "class_names.txt")) if l.strip()]
 mine_train, mine_test = os.path.join(a.labels, "train", "images"), os.path.join(a.labels, "test", "images")
 if not os.path.isdir(mine_train): sys.exit(f"no labelled training frames in {a.labels} - run tools/labelstudio.py export first")

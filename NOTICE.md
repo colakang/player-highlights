@@ -12,5 +12,6 @@
 | [Qwen2.5-VL-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct) (MLX 4-bit) | jersey number reading | Qwen Research License (non-commercial) |
 | [DINOv2](https://github.com/facebookresearch/dinov2) | appearance features | Apache-2.0 |
 
-The default detector (`detector-v1` release) was trained by this project with YOLO11s on the dataset above
-(attribution: Roboflow Universe, "basketball-player-detection-3", CC BY 4.0).
+The default detector (`detector-v2` release) was trained by this project with YOLO11s on the dataset above
+(attribution: Roboflow Universe, "basketball-player-detection-3", CC BY 4.0) and fine-tuned on hand-corrected frames
+from youth games (not published).
