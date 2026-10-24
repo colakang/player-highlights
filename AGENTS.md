@@ -16,7 +16,8 @@ for highlights.
 - `p1/` detection (YOLO ONNX on CoreML) and tracking (McByte, BoT-SORT/OSNet), number reads (Qwen2.5-VL-3B)
 - `p2/` appearance features (DINOv2, colour stripes)
 - `p3/` on-court decision: whistles / vision segmentation, HMM, 1 s edge refinement, Qwen2.5-VL-7B rechecks
-- `p4/` identity (lineup matching, number-anchored EdgeTAM masks), touches (+ Qwen check), shots, cutting/rendering
+- `p4/` identity (lineup matching, number-anchored EdgeTAM masks, game-specific ReID: reid_game / reid_score /
+  reid_apply / reid_segments), touches (+ Qwen check), shots, cutting/rendering
 - `scripts/setup_models.py`, `setup.sh` - environment and model download
 - `third_party/` (not committed) - EdgeTAM clone made by `setup.sh`
 

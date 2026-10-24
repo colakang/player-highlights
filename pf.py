@@ -27,6 +27,7 @@ ap.add_argument("--team-size", type=int, default=5, help="players per team on co
 ap.add_argument("--out", default="", help="output folder (default: ~/Movies/player-highlights/<game folder>/)")
 ap.add_argument("--work", default="", help="work folder for intermediate data (default: work/<game folder name>)")
 ap.add_argument("--no-full", action="store_true", help="skip the full on-court version")
+ap.add_argument("--no-reid", action="store_true", help="skip the game-specific re-identification step (~15-20 min per game)")
 ap.add_argument("--keep-frames", action="store_true", help="keep the 6 fps frame cache (about 1.5 GB per 15 min of video)")
 ap.add_argument("--plays", default="", help="your own play-by-play / clip times (see README): cuts exactly those clips + box score")
 ap.add_argument("--auto", action="store_true", help="with --plays: also make the automatic reel")
@@ -72,18 +73,48 @@ def run(cmd, W=None, log=None):
 
 
 games = []
+ANALYSE = (["p4/her_tracks.py"], ["p4/shot_cands.py"], ["p4/shot_clf.py", "score"], ["p4/identity.py", "--number", a.number, "--color", a.color],
+           ["p4/anchors.py", "--number", a.number, "--color", a.color], ["p4/mask_anchor.py"])
+TOUCH = (["p4/ball_crop.py"], ["p4/touch.py"], ["p4/touch_vlm.py"])
+DONE = {"p4/mask_anchor.py": "p4/mask_anchor.json", "p4/touch_vlm.py": "p4/touches_vlm.json"}
+
+
+def steps(W, log, todo):
+    for s in todo:
+        if DONE.get(s[0]) and os.path.exists(os.path.join(W, DONE[s[0]])): continue
+        run([PY, "-W", "ignore", *s], W=W, log=log)
+
+
+# 1) per period: on-court time, identity, number-anchored mask tracking
 for P, video in zip(periods, a.videos):
     W = os.path.join(work, P.lower()); os.makedirs(W, exist_ok=True); log = os.path.join(W, "pf.log")
     print(f"=== {P}: {video}", flush=True)
     games.append(f"{P}={W}")
-    if os.path.exists(os.path.join(W, ".pf_done")):                    # analysed before: only the cutting is redone
+    if os.path.exists(os.path.join(W, ".pf_done")) or os.path.exists(os.path.join(W, ".pf_analysed")):
         print("  already analysed"); continue
-    run([PY, "run.py", "--video", video, "--work", W, "--period", P, "--number", a.number, "--color", a.color, "--sport", a.sport, "--team_size", str(a.team_size)], log=log)
-    for s in (["p4/her_tracks.py"], ["p4/shot_cands.py"], ["p4/shot_clf.py", "score"], ["p4/identity.py", "--number", a.number, "--color", a.color],
-              ["p4/anchors.py", "--number", a.number, "--color", a.color], ["p4/mask_anchor.py"], ["p4/ball_crop.py"], ["p4/touch.py"], ["p4/touch_vlm.py"]):
-        done = {"p4/mask_anchor.py": "p4/mask_anchor.json", "p4/touch_vlm.py": "p4/touches_vlm.json"}.get(s[0])
-        if done and os.path.exists(os.path.join(W, done)): continue
-        run([PY, "-W", "ignore", *s], W=W, log=log)
+    run([PY, "run.py", "--video", video, "--work", W, "--period", P, "--number", a.number, "--color", a.color, "--sport", a.sport,
+         "--team_size", str(a.team_size)], log=log)
+    steps(W, log, ANALYSE)
+    open(os.path.join(W, ".pf_analysed"), "w").close()
+
+# 2) whole game: game-specific re-identification learnt from clear number reads corrects / completes her boxes
+reid_done = os.path.join(work, ".reid_done")
+if not a.no_reid and not os.path.exists(reid_done):
+    print("=== game ReID", flush=True); model = os.path.join(work, "reid.pt"); log = os.path.join(work, "reid.log")
+    per = [f"{g.split('=')[0].lower()}={g.split('=')[1]}" for g in games]
+    run([PY, "-W", "ignore", "p4/reid_game.py", "--games", *per, "--number", a.number, "--epochs", "3", "--near", "1.0", "--out", model], log=log)
+    run([PY, "-W", "ignore", "p4/reid_score.py", "--model", model, "--periods", *games], log=log)
+    for g in games:
+        run([PY, "p4/reid_apply.py"], W=g.split("=")[1], log=log)
+        run([PY, "p4/reid_segments.py"], W=g.split("=")[1], log=log)
+    open(reid_done, "w").close()
+
+# 3) per period: touches on the final boxes (zoomed ball detection + Qwen check)
+for g in games:
+    P, W = g.split("=")
+    if os.path.exists(os.path.join(W, ".pf_done")): continue
+    print(f"=== {P}: touches", flush=True)
+    steps(W, os.path.join(W, "pf.log"), TOUCH)
     open(os.path.join(W, ".pf_done"), "w").close()
 
 # minutes played

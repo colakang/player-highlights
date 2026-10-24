@@ -136,7 +136,7 @@ in **MLX** format, EdgeTAM in PyTorch on MPS.
 On five youth games (1080p, sideline camera):
 
 - On-court stretches: 93–100 % recall and precision against hand-checked times in most quarters
-- Player identified for 65–85 % of their on-court time
+- "Which box is the player" on hand-checked frames (3 games): 71 % of visible frames found, 86 % of given boxes correct
 - Highlight reel: about 3 out of 4 of the player's possessions; far-court plays, crowded rebounds and off-ball
   defence are the usual misses
 
@@ -146,7 +146,9 @@ Video quality matters most — 4K, a fast shutter (1/250 s or faster) and a high
 
 Detection (YOLO11s, CoreML) → tracking (McByte, BoT-SORT + OSNet) → jersey number reading (Qwen2.5-VL 3B / 7B,
 MLX) → whistle / vision segmentation + HMM for on-court time → lineup-constrained identity → EdgeTAM mask tracking
-anchored on number reads → zoomed ball detection + Qwen check of touches → shot candidates → hardware-encoded cuts.
+anchored on number reads → **game-specific re-identification** (a model trained per game, automatically, on the crops
+where numbers were read clearly; corrects the player's boxes and drops segments that drifted onto someone else) →
+zoomed ball detection + Qwen check of touches → shot candidates → hardware-encoded cuts.
 Details in [AGENTS.md](AGENTS.md).
 
 ## 中文简介
