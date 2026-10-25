@@ -1,6 +1,6 @@
-"""Append a 1-second game-stats card to a highlight reel (in place).
+"""Put a game-stats card at the start (default) or end of a video, in place.
 
-python p4/stats_card.py --stats data/stats/<game>.json --video highlight.mp4 [--sec 1]
+python p4/stats_card.py --stats data/stats/<game>.json --video highlight.mp4 [--at start|end] [--sec 3]
 stats json: {"title": "...", "subtitle": "...", "minutes": "14:30", "rows": [["投篮", "1/2"], ...], "note": "..."}
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile
@@ -11,7 +11,8 @@ from avutil import cjk_font, concat_av
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--stats", required=True); ap.add_argument("--video", nargs="+", required=True)
-ap.add_argument("--sec", type=float, default=1.0); ap.add_argument("--png", default="")
+ap.add_argument("--sec", type=float, default=3.0); ap.add_argument("--png", default="")
+ap.add_argument("--at", choices=["start", "end"], default="start", help="start: viewers see the stats first")
 a = ap.parse_args()
 S = json.load(open(a.stats))
 
@@ -37,6 +38,6 @@ mov = f"{tmp}/card.mov"
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-t", str(a.sec), "-i", png, "-f", "lavfi", "-t", str(a.sec), "-i", "anullsrc=r=44100:cl=stereo",
                 "-c:v", "hevc_videotoolbox", "-b:v", "10M", "-tag:v", "hvc1", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "pcm_s16le", mov], check=True)
 for v in a.video:
-    out = f"{tmp}/out.mp4"; concat_av([v, mov], out, "10M", xfade=0.4)
-    shutil.move(out, v); print("card appended ->", v)
+    out = f"{tmp}/out.mp4"; concat_av([mov, v] if a.at == "start" else [v, mov], out, "10M", xfade=0.4)
+    shutil.move(out, v); print(f"stats card at the {a.at} ->", v)
 shutil.rmtree(tmp, ignore_errors=True)

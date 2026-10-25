@@ -159,7 +159,8 @@ if not a.no_full:
     for P in periods:
         q = os.path.join(out, f"{name}_full_{P}.mp4")
         if os.path.exists(q): os.remove(q)
-    made.append(os.path.join(out, f"{name}_full_game.mp4"))
+    full = os.path.join(out, f"{name}_full_game.mp4")
+    run([PY, "p4/stats_card.py", "--stats", stats, "--video", full]); made.append(full)
 if not a.keep_frames:
     for g in games:
         subprocess.run(["rm", "-rf", os.path.join(g.split("=")[1], "frames")])
