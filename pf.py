@@ -31,6 +31,8 @@ ap.add_argument("--no-reid", action="store_true", help="skip the game-specific r
 ap.add_argument("--keep-frames", action="store_true", help="keep the 6 fps frame cache (about 1.5 GB per 15 min of video)")
 ap.add_argument("--plays", default="", help="your own play-by-play / clip times (see README): cuts exactly those clips + box score")
 ap.add_argument("--auto", action="store_true", help="with --plays: also make the automatic reel")
+ap.add_argument("--box", default="", help='stats for the card, any of PTS FG 3P FT REB OREB AST STL BLK TOV PF, e.g. "PTS=8 FG=4/8 FT=0/4 REB=1"')
+ap.add_argument("--minutes", default="", help="minutes played shown on the card (e.g. 14:30) instead of the automatic estimate")
 ap.add_argument("--lang", choices=["en", "zh"], default="en", help="captions, stats card and report language")
 ap.add_argument("--adjust", default="", help="clip edits file (lines copied from the _clips.txt list + '-2 +3' / 'x'), re-renders only")
 ap.add_argument("--notify", default="", help='optional shell command run at the end / on error, "{msg}" is replaced by the message')
@@ -129,9 +131,18 @@ for g in games:
 mins = f"{int(tot)}:{int(round(tot * 60)) % 60:02d}"
 stats = os.path.join(work, "stats_auto.json")
 zh = a.lang == "zh"
+if a.minutes: mins = a.minutes
+BOX_LABELS = {"PTS": ("Points", "得分"), "FG": ("Field goals", "投篮"), "3P": ("3-pointers", "三分"), "FT": ("Free throws", "罚球"),
+              "REB": ("Rebounds", "篮板"), "OREB": ("Off. rebounds", "前场篮板"), "AST": ("Assists", "助攻"), "STL": ("Steals", "抢断"),
+              "BLK": ("Blocks", "盖帽"), "TOV": ("Turnovers", "失误"), "PF": ("Fouls", "犯规")}
+box_rows = []
+for kv in a.box.replace(",", " ").split():
+    k, _, v = kv.partition("="); k = k.strip().upper()
+    if k in BOX_LABELS and v: box_rows.append([BOX_LABELS[k][1 if zh else 0], v.strip()])
 json.dump(dict(title=name.replace("_", " "), subtitle=(a.title or game) + ("  ·  自动版" if zh else "  ·  auto"), minutes=mins,
-               minutes_label="上场时间" if zh else "Minutes", rows=[["片段" if zh else "Clips", "自动识别" if zh else "automatic"]],
-               note="自动版：触球经 Qwen2.5-VL 复核 + 投篮候选" if zh else "Automatic: touches checked by Qwen2.5-VL + shot candidates"),
+               minutes_label="上场时间" if zh else "Minutes", rows=box_rows or [["片段" if zh else "Clips", "自动识别" if zh else "automatic"]],
+               note=("数据由家长提供；片段为自动识别" if zh else "Stats provided by the family; clips found automatically") if box_rows else
+                    ("自动版：触球经 Qwen2.5-VL 复核 + 投篮候选" if zh else "Automatic: touches checked by Qwen2.5-VL + shot candidates")),
           open(stats, "w"), ensure_ascii=False)
 adjust = ["--adjust", os.path.abspath(a.adjust)] if a.adjust else []
 tagz = lambda z: "" if z <= 1 else f"_zoom{z:g}"

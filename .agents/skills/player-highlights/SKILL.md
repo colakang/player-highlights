@@ -38,7 +38,10 @@ Ask in the user's language, in one message where possible:
 8. **Language** of captions / stats card / report: English (default) or Chinese (`--lang zh`).
 9. **Own picks?** If the user has (or wants to dictate) the moments to include, write them into a plays file
    (format in README "Your own picks") and pass `--plays <file>` (add `--auto` to also get the automatic reel).
-10. Optional: a notification command (e.g. a chat CLI) - pass as `--notify '... "{msg}"'`.
+10. **Stats for the opening card** (optional): ask if they know the player's points, field goals, free throws, rebounds,
+    steals, turnovers (e.g. from the scoresheet) -> `--box "PTS=8 FG=4/8 FT=0/4 REB=1 STL=2 TOV=1"` (only given fields
+    are shown); a hand-checked minutes figure -> `--minutes 14:30`. Without them the card shows minutes only.
+11. Optional: a notification command (e.g. a chat CLI) - pass as `--notify '... "{msg}"'`.
 
 ## 3. Run
 
